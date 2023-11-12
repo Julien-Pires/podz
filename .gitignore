@@ -81,3 +81,7 @@ dist
 
 # Heft
 .heft
+
+#oclif
+oclif.lock
+oclif.manifest.json
