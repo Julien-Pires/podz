@@ -1,4 +1,4 @@
 fn main() {
     println!("Hello, world!");
-    println!("Podz CLI");
+    println!("Podz CLI !!");
 }
