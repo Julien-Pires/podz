@@ -1,15 +1,14 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-pub struct App {
-    #[clap(subcommand)]
-    command: Command,
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Command,
 }
 
 #[derive(Debug, Subcommand)]
-enum Command {
-    #[command(about = "Manage images")]
-    #[clap(subcommand)]
+pub enum Command {
+    #[command(subcommand, about = "Manage images")]
     Image(ImageCommands),
 
     #[command(about = "List installed images")]
@@ -17,7 +16,7 @@ enum Command {
 }
 
 #[derive(Debug, Subcommand)]
-enum ImageCommands {
+pub enum ImageCommands {
     #[command(about = "Load an image from the specified path")]
     Load {
         #[arg(help = "Path that contains the image archive")]
