@@ -2,17 +2,31 @@ use std::path::{Path, PathBuf};
 
 use home::home_dir;
 
+use crate::lockfile::LockFile;
+
 static WORKSPACE_DIR: &str = ".podz";
 static LOCK_FILE: &str = "podz-lock.yaml";
 
 #[derive(Debug)]
-pub struct Workspace {
-    pub working_dir: PathBuf,
-    pub lock_file: PathBuf,
-}
-
 pub struct WorkspaceOptions {
     working_dir: PathBuf,
+}
+
+#[derive(Debug)]
+pub struct WorkspaceFile<T> {
+    path: PathBuf,
+    content: T,
+}
+
+#[derive(Debug)]
+pub struct Workspace {
+    pub options: WorkspaceOptions,
+    pub lock_file: WorkspaceFile<LockFile>,
+}
+
+pub enum WorkspaceError {
+    NotFound,
+    LockFileError(crate::lockfile::LockFileError),
 }
 
 impl WorkspaceOptions {
@@ -29,10 +43,32 @@ impl WorkspaceOptions {
 }
 
 impl Workspace {
-    pub fn new(options: WorkspaceOptions) -> Workspace {
+    pub fn default(options: WorkspaceOptions) -> Workspace {
+        let lock_file_path = Path::new(&options.working_dir).join(LOCK_FILE);
+
         Workspace {
-            working_dir: options.working_dir.to_path_buf(),
-            lock_file: Path::new(&options.working_dir).join(LOCK_FILE),
+            options,
+            lock_file: WorkspaceFile {
+                path: lock_file_path,
+                content: LockFile::default(),
+            },
         }
+    }
+
+    pub fn load(options: WorkspaceOptions) -> Result<Workspace, WorkspaceError> {
+        match std::fs::exists(&options.working_dir) {
+            Ok(false) | Err(_) => return Err(WorkspaceError::NotFound),
+            _ => (),
+        };
+        let lock_file_path = Path::new(&options.working_dir).join(LOCK_FILE);
+        let lock_file = LockFile::load(&lock_file_path).map_err(WorkspaceError::LockFileError)?;
+
+        Ok(Workspace {
+            options,
+            lock_file: WorkspaceFile {
+                path: lock_file_path,
+                content: lock_file,
+            },
+        })
     }
 }

@@ -1,6 +1,6 @@
 use clap::Parser;
 use command::{Cli, Command};
-use lockfile::LockFile;
+
 use workspace::{Workspace, WorkspaceOptions};
 
 mod command;
@@ -11,14 +11,16 @@ fn main() {
     let cli = Cli::parse();
     let options = WorkspaceOptions::with_home();
     let workspace = match options {
-        Ok(opts) => Workspace::new(opts),
+        Ok(opts) => match Workspace::load(opts) {
+            Ok(workspace) => workspace,
+            Err(_) => Workspace::default(opts),
+        },
         Err(_) => todo!("Implement Error"),
     };
 
     match cli.command {
         Command::Images => {
-            println!("{:?}", workspace);
-            LockFile::load("lock_file");
+            println!("{:?}", workspace)
         }
         Command::Image(_) => {
             panic!("Not Implemented yet!")
