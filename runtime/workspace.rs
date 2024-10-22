@@ -2,7 +2,10 @@ use std::path::{Path, PathBuf};
 
 use home::home_dir;
 
-use crate::lockfile::{LockFile, LockFileReader};
+use crate::{
+    file::Reader,
+    lockfile::{LockFile, LockFileReader},
+};
 
 static WORKSPACE_DIR: &str = ".podz";
 static LOCK_FILE: &str = "podz-lock.yaml";
@@ -44,27 +47,20 @@ impl WorkspaceOptions {
 }
 
 impl Workspace {
-    fn load_or_create<T, E, O>(path: PathBuf, reader: O) -> Result<WorkspaceFile<T>, WorkspaceError>
-    where
-        O: FnOnce(String) -> Result<T, E>,
-    {
-        let content = std::fs::read_to_string(&path).map_err(|_| WorkspaceError::FileNotFound)?;
-        let result = reader(content);
+    fn load_or_create<TFile, TError, TReader: Reader<TFile, TError>>(
+        reader: TReader,
+    ) -> Result<WorkspaceFile<T>, WorkspaceError> {
+        let content =
+            std::fs::read_to_string(reader.path()).map_err(|_| WorkspaceError::FileNotFound)?;
+        let result = reader.read(content);
         match result {
-            Ok(content) => return Ok(WorkspaceFile { path, content }),
+            Ok(content) => {
+                return Ok(WorkspaceFile {
+                    path: reader.path(),
+                    content,
+                })
+            }
             Err(_) => todo!(),
-        }
-    }
-
-    pub fn default(options: WorkspaceOptions) -> Workspace {
-        let lock_file_path = Path::new(&options.working_dir).join(LOCK_FILE);
-
-        Workspace {
-            options,
-            lock_file: WorkspaceFile {
-                path: lock_file_path,
-                content: LockFile::new(),
-            },
         }
     }
 
@@ -74,10 +70,9 @@ impl Workspace {
             _ => (),
         };
 
-        let lock_file = Workspace::load_or_create(
+        let lock_file = Workspace::load_or_create(LockFileReader::new(
             Path::new(&options.working_dir).join(LOCK_FILE),
-            LockFileReader::read,
-        )
+        ))
         .map_err(WorkspaceError::LockFileError)?;
 
         Ok(Workspace { options, lock_file })

@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use yaml_rust2::{Yaml, YamlLoader};
+
+use crate::file::Reader;
 
 #[derive(Debug)]
 struct Package {
@@ -14,7 +16,7 @@ pub struct LockFile {
 }
 
 pub struct LockFileReader {
-    content: String,
+    path: PathBuf,
 }
 
 pub enum LockFileError {
@@ -24,7 +26,17 @@ pub enum LockFileError {
 }
 
 impl LockFileReader {
-    pub fn read(content: String) -> Result<LockFile, LockFileError> {
+    pub fn new(path: PathBuf) -> LockFileReader {
+        LockFileReader { path }
+    }
+}
+
+impl Reader<LockFile, LockFileError> for LockFileReader {
+    fn path(&self) -> PathBuf {
+        self.path.to_path_buf()
+    }
+
+    fn read(&self, content: String) -> Result<LockFile, LockFileError> {
         fn get_package(node: &Yaml) -> Result<Package, LockFileError> {
             let version =
                 node["version"]
