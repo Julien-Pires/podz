@@ -1,0 +1,12 @@
+[package]
+name = "podz_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "podz_runtime"
+path = "lib.rs"
+
+[dependencies]
+home = "0.5.9"
+yaml-rust2 = "0.9.0"

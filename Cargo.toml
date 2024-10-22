@@ -1,5 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+    "runtime",
     "cli",
 ]
+
+[workspace.dependencies]
+podz_runtime = { version = "0.1.0", path = "./runtime" }

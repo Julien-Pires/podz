@@ -1,11 +1,8 @@
 use clap::Parser;
 use command::{Cli, Command};
-
-use workspace::{Workspace, WorkspaceOptions};
+use podz_runtime::workspace::{Workspace, WorkspaceOptions};
 
 mod command;
-mod lockfile;
-mod workspace;
 
 fn main() {
     let cli = Cli::parse();
