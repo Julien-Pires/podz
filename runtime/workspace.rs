@@ -50,18 +50,18 @@ impl Workspace {
     fn load_or_create<TFile, TError, TReader: Reader<TFile, TError>>(
         reader: TReader,
     ) -> Result<WorkspaceFile<TFile>, WorkspaceError> {
-        let content =
-            std::fs::read_to_string(reader.path()).map_err(|_| WorkspaceError::FileNotFound)?;
-        let result = reader.read(content);
-        match result {
-            Ok(content) => {
-                return Ok(WorkspaceFile {
-                    path: reader.path(),
-                    content,
-                })
-            }
-            Err(_) => todo!(),
-        }
+        let result =
+            std::fs::read_to_string(reader.path());
+        let file = match result {
+            Ok(content) => reader.read(content)?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => reader.empty(),
+            Err(error) => return Err(error)
+        };
+
+        Ok(WorkspaceFile {
+            path: reader.path(),
+            content: file,
+        })
     }
 
     pub fn load(options: WorkspaceOptions) -> Result<Workspace, WorkspaceError> {
