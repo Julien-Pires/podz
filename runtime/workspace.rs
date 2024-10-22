@@ -29,8 +29,8 @@ pub struct Workspace {
 
 pub enum WorkspaceError {
     NotFound,
-    FileNotFound,
-    LockFileError(crate::lockfile::LockFileError),
+    FileError(PathBuf),
+    FileReadError(PathBuf),
 }
 
 impl WorkspaceOptions {
@@ -47,15 +47,16 @@ impl WorkspaceOptions {
 }
 
 impl Workspace {
-    fn load_or_create<TFile, TError, TReader: Reader<TFile, TError>>(
-        reader: TReader,
+    fn load_or_create<TFile, TError>(
+        reader: impl Reader<TFile, TError>,
     ) -> Result<WorkspaceFile<TFile>, WorkspaceError> {
-        let result =
-            std::fs::read_to_string(reader.path());
+        let result = std::fs::read_to_string(reader.path());
         let file = match result {
-            Ok(content) => reader.read(content)?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => reader.empty(),
-            Err(error) => return Err(error)
+            Ok(content) => reader
+                .read(content)
+                .map_err(|_| WorkspaceError::FileReadError(reader.path()))?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => reader.new_empty(),
+            Err(_) => return Err(WorkspaceError::FileError(reader.path())),
         };
 
         Ok(WorkspaceFile {

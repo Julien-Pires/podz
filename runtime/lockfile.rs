@@ -5,9 +5,10 @@ use yaml_rust2::{Yaml, YamlLoader};
 use crate::file::Reader;
 
 #[derive(Debug)]
-struct Package {
-    version: String,
-    integrity: String,
+pub struct Package {
+    pub name: String,
+    pub version: String,
+    pub integrity: String,
 }
 
 #[derive(Debug)]
@@ -36,8 +37,13 @@ impl Reader<LockFile, LockFileError> for LockFileReader {
         self.path.to_path_buf()
     }
 
+    fn new_empty(&self) -> LockFile {
+        LockFile::new_empty()
+    }
+
     fn read(&self, content: String) -> Result<LockFile, LockFileError> {
-        fn get_package(node: &Yaml) -> Result<Package, LockFileError> {
+        fn get_package((name, node): (&Yaml, &Yaml)) -> Result<Package, LockFileError> {
+            let name = name.as_str().ok_or(LockFileError::InvalidPackageName)?;
             let version =
                 node["version"]
                     .as_str()
@@ -51,6 +57,7 @@ impl Reader<LockFile, LockFileError> for LockFileReader {
                         property: "integrity".to_string(),
                     })?;
             Ok(Package {
+                name: name.to_string(),
                 version: version.to_string(),
                 integrity: integrity.to_string(),
             })
@@ -60,24 +67,25 @@ impl Reader<LockFile, LockFileError> for LockFileReader {
         let root = docs[0]["packages"]
             .as_hash()
             .ok_or(LockFileError::PackagesNotFound)?;
-        let packages: Result<HashMap<String, Package>, LockFileError> = root
+        let packages = root
             .iter()
-            .map(
-                |(name, values)| -> Result<(String, Package), LockFileError> {
-                    let name = name.as_str().ok_or(LockFileError::InvalidPackageName)?;
-                    let pkg = get_package(values)?;
-                    Ok((name.to_string(), pkg))
-                },
-            )
-            .collect();
-        Ok(LockFile {
-            packages: packages?,
-        })
+            .map(get_package)
+            .collect::<Result<Vec<Package>, LockFileError>>()?;
+        Ok(LockFile::new(packages))
     }
 }
 
 impl LockFile {
-    pub fn new() -> LockFile {
+    pub fn new(packages: Vec<Package>) -> LockFile {
+        LockFile {
+            packages: packages
+                .into_iter()
+                .map(|pkg| (pkg.name.to_string(), pkg))
+                .collect(),
+        }
+    }
+
+    pub fn new_empty() -> LockFile {
         LockFile {
             packages: HashMap::new(),
         }
