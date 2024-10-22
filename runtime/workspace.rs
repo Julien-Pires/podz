@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use home::home_dir;
 
-use crate::lockfile::LockFile;
+use crate::lockfile::{LockFile, LockFileReader};
 
 static WORKSPACE_DIR: &str = ".podz";
 static LOCK_FILE: &str = "podz-lock.yaml";
@@ -26,6 +26,7 @@ pub struct Workspace {
 
 pub enum WorkspaceError {
     NotFound,
+    FileNotFound,
     LockFileError(crate::lockfile::LockFileError),
 }
 
@@ -43,6 +44,18 @@ impl WorkspaceOptions {
 }
 
 impl Workspace {
+    fn load_or_create<T, E, O>(path: PathBuf, reader: O) -> Result<WorkspaceFile<T>, WorkspaceError>
+    where
+        O: FnOnce(String) -> Result<T, E>,
+    {
+        let content = std::fs::read_to_string(&path).map_err(|_| WorkspaceError::FileNotFound)?;
+        let result = reader(content);
+        match result {
+            Ok(content) => return Ok(WorkspaceFile { path, content }),
+            Err(_) => todo!(),
+        }
+    }
+
     pub fn default(options: WorkspaceOptions) -> Workspace {
         let lock_file_path = Path::new(&options.working_dir).join(LOCK_FILE);
 
@@ -50,7 +63,7 @@ impl Workspace {
             options,
             lock_file: WorkspaceFile {
                 path: lock_file_path,
-                content: LockFile::default(),
+                content: LockFile::new(),
             },
         }
     }
@@ -60,15 +73,13 @@ impl Workspace {
             Ok(false) | Err(_) => return Err(WorkspaceError::NotFound),
             _ => (),
         };
-        let lock_file_path = Path::new(&options.working_dir).join(LOCK_FILE);
-        let lock_file = LockFile::load(&lock_file_path).map_err(WorkspaceError::LockFileError)?;
 
-        Ok(Workspace {
-            options,
-            lock_file: WorkspaceFile {
-                path: lock_file_path,
-                content: lock_file,
-            },
-        })
+        let lock_file = Workspace::load_or_create(
+            Path::new(&options.working_dir).join(LOCK_FILE),
+            LockFileReader::read,
+        )
+        .map_err(WorkspaceError::LockFileError)?;
+
+        Ok(Workspace { options, lock_file })
     }
 }

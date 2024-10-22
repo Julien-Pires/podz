@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use yaml_rust2::{Yaml, YamlLoader};
 
@@ -13,21 +13,18 @@ pub struct LockFile {
     packages: HashMap<String, Package>,
 }
 
+pub struct LockFileReader {
+    content: String,
+}
+
 pub enum LockFileError {
-    LockFileNotFound,
     PackagesNotFound,
     InvalidPackageName,
     MissingPackageProperty { property: String },
 }
 
-impl LockFile {
-    pub fn default() -> LockFile {
-        LockFile {
-            packages: HashMap::new(),
-        }
-    }
-
-    pub fn load(lock_file: &PathBuf) -> Result<LockFile, LockFileError> {
+impl LockFileReader {
+    pub fn read(content: String) -> Result<LockFile, LockFileError> {
         fn get_package(node: &Yaml) -> Result<Package, LockFileError> {
             let version =
                 node["version"]
@@ -47,8 +44,6 @@ impl LockFile {
             })
         }
 
-        let content =
-            std::fs::read_to_string(lock_file).map_err(|_| LockFileError::LockFileNotFound)?;
         let docs = YamlLoader::load_from_str(&content).unwrap();
         let root = docs[0]["packages"]
             .as_hash()
@@ -66,5 +61,13 @@ impl LockFile {
         Ok(LockFile {
             packages: packages?,
         })
+    }
+}
+
+impl LockFile {
+    pub fn new() -> LockFile {
+        LockFile {
+            packages: HashMap::new(),
+        }
     }
 }

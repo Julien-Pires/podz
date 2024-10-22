@@ -1,2 +1,3 @@
-pub mod lockfile;
+mod lockfile;
+
 pub mod workspace;
