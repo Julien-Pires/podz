@@ -49,7 +49,7 @@ impl WorkspaceOptions {
 impl Workspace {
     fn load_or_create<TFile, TError, TReader: Reader<TFile, TError>>(
         reader: TReader,
-    ) -> Result<WorkspaceFile<T>, WorkspaceError> {
+    ) -> Result<WorkspaceFile<TFile>, WorkspaceError> {
         let content =
             std::fs::read_to_string(reader.path()).map_err(|_| WorkspaceError::FileNotFound)?;
         let result = reader.read(content);
@@ -72,8 +72,7 @@ impl Workspace {
 
         let lock_file = Workspace::load_or_create(LockFileReader::new(
             Path::new(&options.working_dir).join(LOCK_FILE),
-        ))
-        .map_err(WorkspaceError::LockFileError)?;
+        ))?;
 
         Ok(Workspace { options, lock_file })
     }
