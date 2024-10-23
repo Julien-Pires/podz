@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use home::home_dir;
 
 use crate::{
-    file::Reader,
-    lockfile::{LockFile, LockFileReader},
+    file::{Builder, Reader},
+    lockfile::{LockFile, LockFileDefault, LockFileReader},
 };
 
 static WORKSPACE_DIR: &str = ".podz";
@@ -48,19 +48,20 @@ impl WorkspaceOptions {
 
 impl Workspace {
     fn load_or_create<TFile, TError>(
+        path: PathBuf,
         reader: impl Reader<TFile, TError>,
+        builder: impl Builder<TFile>,
     ) -> Result<WorkspaceFile<TFile>, WorkspaceError> {
-        let result = std::fs::read_to_string(reader.path());
+        let result = std::fs::read_to_string(&path);
         let file = match result {
             Ok(content) => reader
                 .read(content)
-                .map_err(|_| WorkspaceError::FileReadError(reader.path()))?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => reader.new_empty(),
-            Err(_) => return Err(WorkspaceError::FileError(reader.path())),
+                .map_err(|_| WorkspaceError::FileReadError(path.to_path_buf()))?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => builder.new(),
+            Err(_) => return Err(WorkspaceError::FileError(path.to_path_buf())),
         };
-
         Ok(WorkspaceFile {
-            path: reader.path(),
+            path,
             content: file,
         })
     }
@@ -71,10 +72,11 @@ impl Workspace {
             _ => (),
         };
 
-        let lock_file = Workspace::load_or_create(LockFileReader::new(
+        let lock_file = Workspace::load_or_create(
             Path::new(&options.working_dir).join(LOCK_FILE),
-        ))?;
-
+            LockFileReader,
+            LockFileDefault,
+        )?;
         Ok(Workspace { options, lock_file })
     }
 }

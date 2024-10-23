@@ -1,8 +1,8 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use yaml_rust2::{Yaml, YamlLoader};
 
-use crate::file::Reader;
+use crate::file::{Builder, Reader};
 
 #[derive(Debug)]
 pub struct Package {
@@ -16,9 +16,9 @@ pub struct LockFile {
     packages: HashMap<String, Package>,
 }
 
-pub struct LockFileReader {
-    path: PathBuf,
-}
+pub struct LockFileReader;
+
+pub struct LockFileDefault;
 
 pub enum LockFileError {
     PackagesNotFound,
@@ -26,21 +26,7 @@ pub enum LockFileError {
     MissingPackageProperty { property: String },
 }
 
-impl LockFileReader {
-    pub fn new(path: PathBuf) -> LockFileReader {
-        LockFileReader { path }
-    }
-}
-
 impl Reader<LockFile, LockFileError> for LockFileReader {
-    fn path(&self) -> PathBuf {
-        self.path.to_path_buf()
-    }
-
-    fn new_empty(&self) -> LockFile {
-        LockFile::new_empty()
-    }
-
     fn read(&self, content: String) -> Result<LockFile, LockFileError> {
         fn get_package((name, node): (&Yaml, &Yaml)) -> Result<Package, LockFileError> {
             let name = name.as_str().ok_or(LockFileError::InvalidPackageName)?;
@@ -75,19 +61,19 @@ impl Reader<LockFile, LockFileError> for LockFileReader {
     }
 }
 
+impl Builder<LockFile> for LockFileDefault {
+    fn new(&self) -> LockFile {
+        LockFile::new(Vec::new())
+    }
+}
+
 impl LockFile {
-    pub fn new(packages: Vec<Package>) -> LockFile {
+    fn new(packages: Vec<Package>) -> LockFile {
         LockFile {
             packages: packages
                 .into_iter()
                 .map(|pkg| (pkg.name.to_string(), pkg))
                 .collect(),
-        }
-    }
-
-    pub fn new_empty() -> LockFile {
-        LockFile {
-            packages: HashMap::new(),
         }
     }
 }

@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-
 pub trait Reader<T, E> {
-    fn path(&self) -> PathBuf;
-
-    fn new_empty(&self) -> T;
     fn read(&self, content: String) -> Result<T, E>;
+}
+
+pub trait Builder<T> {
+    fn new(&self) -> T;
 }
