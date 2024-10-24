@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use home::home_dir;
 
 use crate::{
-    file::{Builder, Reader},
-    lockfile::{LockFile, LockFileDefault, LockFileReader},
+    file::FileReader,
+    lockfile::{CliLockFile, CliLockFileReader},
 };
 
 static WORKSPACE_DIR: &str = ".podz";
@@ -24,7 +24,7 @@ pub struct WorkspaceFile<T> {
 #[derive(Debug)]
 pub struct Workspace {
     pub options: WorkspaceOptions,
-    pub lock_file: WorkspaceFile<LockFile>,
+    pub lockfile: WorkspaceFile<CliLockFile>,
 }
 
 pub enum WorkspaceError {
@@ -49,10 +49,10 @@ impl WorkspaceOptions {
 impl Workspace {
     fn load_or_create<TFile, TError>(
         path: PathBuf,
-        reader: impl Reader<TFile, TError>,
+        reader: impl FileReader<TFile, TError>,
         builder: impl Builder<TFile>,
     ) -> Result<WorkspaceFile<TFile>, WorkspaceError> {
-        let result = std::fs::read_to_string(&path);
+        let result = std::fs::read(&path);
         let file = match result {
             Ok(content) => reader
                 .read(content)
@@ -66,17 +66,17 @@ impl Workspace {
         })
     }
 
-    pub fn load(options: WorkspaceOptions) -> Result<Workspace, WorkspaceError> {
+    pub fn new(options: WorkspaceOptions) -> Result<Workspace, WorkspaceError> {
         match std::fs::exists(&options.working_dir) {
             Ok(false) | Err(_) => return Err(WorkspaceError::NotFound),
             _ => (),
         };
 
-        let lock_file = Workspace::load_or_create(
+        let lockfile = Workspace::load_or_create(
             Path::new(&options.working_dir).join(LOCK_FILE),
-            LockFileReader,
+            CliLockFileReader,
             LockFileDefault,
         )?;
-        Ok(Workspace { options, lock_file })
+        Ok(Workspace { options, lockfile })
     }
 }
