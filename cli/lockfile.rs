@@ -1,7 +1,7 @@
 use podz_runtime::lockfile::{LockFile, LockFileTrait, Package};
 use yaml_rust2::{Yaml, YamlLoader};
 
-use crate::file::FileReader;
+use crate::file::{Builder, FileReader};
 
 pub struct CliLockFileReader;
 
@@ -11,12 +11,13 @@ pub enum CliLockFileError {
     MissingPackageProperty { property: String },
 }
 
+#[derive(Debug)]
 pub struct CliLockFile {
     lockfile: LockFile,
 }
 
-impl FileReader<LockFile, CliLockFileError> for CliLockFileReader {
-    fn read(&self, content: [u8]) -> Result<LockFile, CliLockFileError> {
+impl FileReader<CliLockFile, CliLockFileError> for CliLockFileReader {
+    fn read(&self, content: Vec<u8>) -> Result<CliLockFile, CliLockFileError> {
         fn get_package((name, node): (&Yaml, &Yaml)) -> Result<Package, CliLockFileError> {
             let name = name.as_str().ok_or(CliLockFileError::InvalidPackageName)?;
             let version =
@@ -46,7 +47,17 @@ impl FileReader<LockFile, CliLockFileError> for CliLockFileReader {
             .iter()
             .map(get_package)
             .collect::<Result<Vec<Package>, CliLockFileError>>()?;
-        Ok(LockFile::new(packages))
+        Ok(CliLockFile {
+            lockfile: LockFile::new(packages),
+        })
+    }
+}
+
+impl Builder<CliLockFile> for CliLockFileReader {
+    fn new(&self) -> CliLockFile {
+        CliLockFile {
+            lockfile: LockFile::new([]),
+        }
     }
 }
 

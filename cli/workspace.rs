@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use home::home_dir;
 
 use crate::{
-    file::FileReader,
+    file::{Builder, FileReader},
     lockfile::{CliLockFile, CliLockFileReader},
 };
 
@@ -47,17 +47,16 @@ impl WorkspaceOptions {
 }
 
 impl Workspace {
-    fn load_or_create<TFile, TError>(
+    fn load_or_create<TFile, TError, TReader: FileReader<TFile, TError> + Builder<TFile>>(
         path: PathBuf,
-        reader: impl FileReader<TFile, TError>,
-        builder: impl Builder<TFile>,
+        reader: TReader,
     ) -> Result<WorkspaceFile<TFile>, WorkspaceError> {
         let result = std::fs::read(&path);
         let file = match result {
             Ok(content) => reader
                 .read(content)
                 .map_err(|_| WorkspaceError::FileReadError(path.to_path_buf()))?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => builder.new(),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => reader.new(),
             Err(_) => return Err(WorkspaceError::FileError(path.to_path_buf())),
         };
         Ok(WorkspaceFile {
@@ -75,7 +74,6 @@ impl Workspace {
         let lockfile = Workspace::load_or_create(
             Path::new(&options.working_dir).join(LOCK_FILE),
             CliLockFileReader,
-            LockFileDefault,
         )?;
         Ok(Workspace { options, lockfile })
     }
